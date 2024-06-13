@@ -39,9 +39,7 @@ type Root struct {
 
 func ValidateWixUser(c *gin.Context) *Root {
 	memberId := c.GetHeader("X-Wix-Member-ID")
-	println(memberId)
 	url := "https://www.wixapis.com/members/v1/members/" + memberId
-	println(url)
 	client := &http.Client{}
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -50,7 +48,6 @@ func ValidateWixUser(c *gin.Context) *Root {
 		c.Abort()
 		return nil
 	}
-	print("WIX_TOKEN", os.Getenv("WIX_TOKEN"))
 	request.Header.Set("Authorization", "Bearer "+os.Getenv("WIX_TOKEN"))
 	request.Header.Set("wix-site-id", os.Getenv("WIX_SITE_ID"))
 	resp, err := client.Do(request)

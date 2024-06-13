@@ -30,10 +30,7 @@ func CallChatGPT(c *gin.Context, messages []chatgpt.Message) (*chatgpt.Message, 
 
 	// if the first message is not the system message, add a system message
 	if len(messages) == 0 || messages[0].Role != chatgpt.SystemRole {
-		messages = append([]chatgpt.Message{{Role: chatgpt.SystemRole, Content: chatgpt.SystemMessage}, {
-			Role:    chatgpt.AssistantRole,
-			Content: `Hi! I'm Diego, your assistant.\nI'm going to ask you a few questions to check your Spanish level.\nCan you introduce yourself in Spanish?\n\n¿Cómo te llamas? ¿De dónde eres? ¿Qué haces en tu tiempo libre?`,
-		}}, messages...)
+		messages = append(chatgpt.InitialMessages, messages...)
 	}
 	jsonData, err := json.Marshal(NewChatGPTRequest(messages))
 
@@ -126,16 +123,6 @@ func PostMessageHandler(c *gin.Context) {
 		return
 	}
 
-	// Marshal the chatGPTResponse struct back to JSON
-	jsonResponse, err := json.Marshal(messages)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to marshal ChatGPT response"})
-		return
-	}
-
-	// Print the full JSON response
-	fmt.Println(string(jsonResponse))
-
 	c.JSON(200, messages)
 
 }
@@ -157,6 +144,11 @@ func GetChatHandler(c *gin.Context) {
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
+	}
+
+	if len(*messages) == 0 {
+		newMessages := chatgpt.InitialMessages[1:]
+		messages = &newMessages
 	}
 
 	c.JSON(200, messages)
