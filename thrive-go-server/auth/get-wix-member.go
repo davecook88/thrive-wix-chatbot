@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Member struct {
+type WixMember struct {
 	ID             string  `json:"id"`
 	Status         string  `json:"status"`
 	Profile        Profile `json:"profile"`
@@ -34,7 +34,7 @@ type Image struct {
 }
 
 type Root struct {
-	Member Member `json:"member"`
+	Member WixMember `json:"member"`
 }
 
 func ValidateWixUser(c *gin.Context) *Root {

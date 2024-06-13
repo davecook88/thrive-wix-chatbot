@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"thrive/server/auth"
 	"thrive/server/chatgpt"
 
 	"cloud.google.com/go/firestore"
@@ -14,8 +15,9 @@ type Client struct {
 }
 
 type SavedChatRecord struct {
-	Messages []chatgpt.Message
-	MemberId string
+	Messages   []chatgpt.Message
+	MemberId   string
+	MemberName string
 }
 
 func NewClient(ctx context.Context, projectID string) (*Client, error) {
@@ -35,9 +37,11 @@ func NewClient(ctx context.Context, projectID string) (*Client, error) {
 
 }
 
-func (c *Client) CreateChat(ctx context.Context, messages []chatgpt.Message) error {
+func (c *Client) CreateChat(ctx context.Context, messages []chatgpt.Message, wixUser auth.WixMember) error {
 	chatDoc := map[string]interface{}{
-		"messages": messages,
+		"messages":   messages,
+		"memberId":   wixUser.ID,
+		"memberName": wixUser.Profile.Nickname,
 		// Add any other fields you want to store in the document
 	}
 	_, _, err := c.Collection("thrive-chats").Add(ctx, chatDoc)
@@ -46,8 +50,9 @@ func (c *Client) CreateChat(ctx context.Context, messages []chatgpt.Message) err
 
 func (c *Client) UpdateChat(ctx context.Context, chatId string, savedChatRecord SavedChatRecord) error {
 	chatDoc := map[string]interface{}{
-		"messages": savedChatRecord.Messages,
-		"memberId": savedChatRecord.MemberId,
+		"messages":   savedChatRecord.Messages,
+		"memberId":   savedChatRecord.MemberId,
+		"memberName": savedChatRecord.MemberName,
 	}
 	_, err := c.Collection("thrive-chats").Doc(chatId).Set(ctx, chatDoc, firestore.MergeAll)
 	return err

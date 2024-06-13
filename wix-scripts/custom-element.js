@@ -95,13 +95,18 @@ class PlacementChatElement extends HTMLElement {
           </style>
           <div class="chat-box" id="chatBox"></div>
           <div class="input-area">
-            <input type="text" id="userMessage" placeholder="Enter your message" />
+            <textarea id="userMessage" placeholder="Enter your message"></textarea>
             <button id="sendButton">Send</button>
           </div>
         `;
 
     this.chatBox = this.shadowRoot.getElementById("chatBox");
     this.userMessage = this.shadowRoot.getElementById("userMessage");
+    this.userMessage.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        this.handleSendMessage();
+      }
+    });
     this.sendButton = this.shadowRoot.getElementById("sendButton");
 
     this.sendButton.addEventListener(

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"thrive/server/auth"
@@ -15,11 +16,46 @@ import (
 )
 
 func NewChatGPTRequest(messages []chatgpt.Message) *chatgpt.ChatGPTRequest {
-	return &chatgpt.ChatGPTRequest{
-		Model:    "gpt-4o",
-		Messages: messages,
-		Stream:   false,
+	toolsArray := []chatgpt.Tools{
+		*chatgpt.NewToolFunction(
+			"estimateUserLevel",
+			`Estimate the user's Spanish level based on their responses. 
+			This should be included with every response with the current best estimate of the user's level.`,
+			map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"estimatedLevel": map[string]interface{}{
+						"type": "string",
+						"enum": []string{"A1", "A2", "B1", "B2", "C1"},
+					},
+				},
+			}),
 	}
+	return &chatgpt.ChatGPTRequest{
+		Model:      "gpt-4o",
+		Messages:   messages,
+		Stream:     false,
+		Tools:      toolsArray,
+		ToolChoice: "required",
+	}
+}
+
+func handleToolCalls(toolCalls []chatgpt.ToolCall) {
+	for _, toolCall := range toolCalls {
+		switch toolCall.Function.Name {
+		case "estimateUserLevel":
+			// Arguments should be a JSON string like this {\"estimatedLevel\":\"C1\"}
+			println("Estimate user level", toolCall.Function.Arguments)
+			arguments := map[string]string{}
+			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &arguments); err != nil {
+				fmt.Println("failed to unmarshal arguments", err)
+				return
+			}
+			fmt.Println(arguments)
+			fmt.Println("Estimated level:", arguments["estimatedLevel"])
+		}
+	}
+
 }
 
 func CallChatGPT(c *gin.Context, messages []chatgpt.Message) (*chatgpt.Message, error) {
@@ -33,6 +69,9 @@ func CallChatGPT(c *gin.Context, messages []chatgpt.Message) (*chatgpt.Message, 
 		messages = append(chatgpt.InitialMessages, messages...)
 	}
 	jsonData, err := json.Marshal(NewChatGPTRequest(messages))
+
+	// print the request JSON
+	fmt.Println(string(jsonData))
 
 	if err != nil {
 		return nil, errors.New("failed to marshal request")
@@ -48,9 +87,35 @@ func CallChatGPT(c *gin.Context, messages []chatgpt.Message) (*chatgpt.Message, 
 	}
 	defer resp.Body.Close()
 
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.New("failed to read response body")
+	}
+
+	// Create a new reader with the response body
+	respBody := bytes.NewReader(body)
+
+	// Pretty-print the JSON response
+	var prettyJSON bytes.Buffer
+	err = json.Indent(&prettyJSON, body, "", "  ")
+	if err != nil {
+		return nil, errors.New("failed to pretty-print JSON")
+	}
+
+	// Print the pretty-printed JSON to the console
+	fmt.Println(prettyJSON.String())
+
+	// Create a new decoder with the response body reader
 	var chatGPTResponse chatgpt.ChatGPTResponse
-	if err := json.NewDecoder(resp.Body).Decode(&chatGPTResponse); err != nil {
+	if err := json.NewDecoder(respBody).Decode(&chatGPTResponse); err != nil {
 		return nil, errors.New("failed to parse response")
+	}
+
+	fmt.Println("decoded response")
+	choice := chatGPTResponse.Choices[0]
+	if choice.Message.ToolCalls != nil {
+		go handleToolCalls(choice.Message.ToolCalls)
 	}
 
 	// scanner := bufio.NewScanner(resp.Body)
@@ -72,7 +137,7 @@ func CallChatGPT(c *gin.Context, messages []chatgpt.Message) (*chatgpt.Message, 
 	// 	}
 	// }
 
-	return &chatGPTResponse.Choices[0].Message, nil
+	return choice.Message.ToMessage(), nil
 
 }
 
@@ -105,6 +170,10 @@ func PostMessageHandler(c *gin.Context) {
 		return
 	}
 
+	if len(*existingMessages) == 0 {
+		existingMessages = &chatgpt.InitialMessages
+	}
+
 	messages := append(*existingMessages, chatgpt.Message{Role: chatgpt.UserRole, Content: request.Message})
 
 	chatGPTResponseMessage, err := CallChatGPT(c, messages)
@@ -116,12 +185,15 @@ func PostMessageHandler(c *gin.Context) {
 	messages = append(messages, *chatGPTResponseMessage)
 
 	if err := dbClient.UpdateChat(c, memberProfile.Member.ID, db.SavedChatRecord{
-		Messages: messages,
-		MemberId: memberProfile.Member.ID,
+		Messages:   messages,
+		MemberId:   memberProfile.Member.ID,
+		MemberName: memberProfile.Member.Profile.Nickname,
 	}); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+
+	println("PostMessageHandler finished")
 
 	c.JSON(200, messages)
 
