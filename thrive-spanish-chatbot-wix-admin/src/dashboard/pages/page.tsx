@@ -1,24 +1,29 @@
 import {
   Box,
-  Button,
-  Cell,
-  FormField,
-  Input,
-  InputArea,
-  Layout,
-  Text,
   WixDesignSystemProvider,
+  Text,
+  Divider,
 } from "@wix/design-system";
-import { embeddedScripts } from "@wix/app-market";
 import "@wix/design-system/styles.global.css";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { withDashboard, useDashboard } from "@wix/dashboard-react";
 import { getAppInstance } from "../../auth";
+import { ChatView } from "../../components/chat";
+import { members } from "@wix/members";
+
 import { useWixModules } from "@wix/sdk-react";
+import { DisplayMemberDetails } from "../../components/member";
 
 export interface Message {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
+}
+
+export interface SavedChatMessage {
+  messages: Message[];
+  memberId: string;
+  memberName: string;
+  lastUpdated: string;
 }
 
 export interface StreamData {
@@ -30,196 +35,102 @@ interface UserMessage {
   message: string;
 }
 
-const API_URL = "http://localhost:8001";
-
-const fetchExistingChat = async (instanceId: string) => {
-  const response = await fetch(`${API_URL}/placement-chat`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      accept: "application/json",
-      Authorization: getAppInstance(),
-    },
-  });
-
-  if (response.ok) {
-    const chatHistory: Message[] = await response.json();
-    return chatHistory;
-  }
-};
+const API_URL = "https://thrive-chat-ba0bf.uc.r.appspot.com";
 
 function ChatApp() {
-  const chatBoxRef = useRef<HTMLDivElement>(null);
-  const { embedScript } = useWixModules(embeddedScripts);
-
-  const scrollToBottom = () => {
-    if (chatBoxRef.current) {
-      chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
-    }
-  };
-
   const { showToast } = useDashboard();
-  const [chatHistory, setChatHistory] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: `Hi! I'm Diego, your assistant.
-        I'm going to ask you a few questions to check your Spanish level. 
-        Can you introduce yourself in Spanish?
-        
-        ¿Cómo te llamas? ¿De dónde eres? ¿Qué haces en tu tiempo libre?`,
-    },
-  ]);
+  const [chats, setChats] = useState<SavedChatMessage[]>([]);
+  const [selectedChat, setSelectedChat] = useState<SavedChatMessage | null>(
+    null
+  );
+  const [member, setMember] = useState<members.Member | null>(null);
+  const { getMember } = useWixModules(members);
 
   useEffect(() => {
-    embedScript({});
-    fetchExistingChat(getAppInstance())
-      .then((chatHistory) => {
-        if (!chatHistory?.length) {
-          return;
-        }
-        setChatHistory(chatHistory);
-        scrollToBottom();
-      })
-      .catch((err) => {
-        console.error(err);
-        showToast({
-          message: "Failed to fetch chat history",
-          type: "error",
-        });
-      });
-  }, []);
-  const [userMessage, setUserMessage] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setChatHistory((prevHistory) => [
-      ...prevHistory,
-      { role: "user", content: userMessage },
-    ]);
-    scrollToBottom();
-    setUserMessage("");
-    const userMessagePayload: UserMessage = {
-      // chat_id: "123",
-      message: userMessage,
-    };
-
-    const response = await fetch(`${API_URL}/placement-chat`, {
-      method: "POST",
+    fetch(`${API_URL}/admin/list-chats`, {
       headers: {
-        "Content-Type": "application/json",
-        accept: "application/json",
         Authorization: getAppInstance(),
       },
-      body: JSON.stringify(userMessagePayload),
-    });
-
-    const reader = response.body?.getReader();
-    let assistantMessage: Message = { role: "assistant", content: "" };
-
-    console.log({ assistantMessage });
-    while (true && reader) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunks = new TextDecoder().decode(value).split("\n");
-      chunks.filter(Boolean).forEach((chunk) => {
-        try {
-          if (!chunk.startsWith("data:")) return;
-          const dataChunk = chunk.slice(5);
-          if (!dataChunk.startsWith("{") || !dataChunk.endsWith("}")) return;
-          const jsonChunk: StreamData = JSON.parse(chunk.slice(5));
-          if (jsonChunk.content) {
-            assistantMessage.content = jsonChunk.content;
-            setChatHistory((prevHistory) => {
-              const lastMessage = prevHistory[prevHistory.length - 1];
-              if (lastMessage.role === "assistant") {
-                return prevHistory.slice(0, -1).concat(assistantMessage);
-              } else {
-                return prevHistory.concat(assistantMessage);
-              }
-            });
-            scrollToBottom();
-          }
-        } catch (err) {
-          console.error(err);
-        }
+    })
+      .then(
+        (response) => response.json() as Promise<{ chats: SavedChatMessage[] }>
+      )
+      .then((data) => {
+        setChats(data.chats);
       });
-    }
+  }, []);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
   };
 
+  useEffect(() => {
+    if (!selectedChat) {
+      setMember(null);
+      return;
+    }
+    getMember(selectedChat?.memberId).then((member) => {
+      setMember(member);
+    });
+  }, [selectedChat?.memberId]);
+
+  console.log("member", member);
   return (
     <WixDesignSystemProvider>
-      <Box
-        align="center"
-        verticalAlign="middle"
-        height="100vh"
-        backgroundColor="D10"
-      >
+      <Box display="flex" height="100vh" backgroundColor="D10">
         <Box
           direction="vertical"
+          width="25%"
+          backgroundColor="D20"
           padding="20px"
-          backgroundColor="white"
-          borderRadius="6px"
-          boxShadow="medium"
-          width="600px"
+          overflow="auto"
+          boxShadow="1px 0 5px rgba(0,0,0,0.1)"
         >
-          <Text size="medium" weight="bold" marginBottom="20px">
-            Chat with Diego
+          <Text size="small" weight="bold" marginBottom="20px" skin="primary">
+            Chats
           </Text>
-          <Box
-            direction="vertical"
-            overflow="auto"
-            height="400px"
-            marginBottom="20px"
-            ref={chatBoxRef}
-          >
-            {chatHistory.map((message, index) => (
-              <Box
-                key={index}
-                direction="horizontal"
-                backgroundColor={
-                  message.role === "assistant" ? "	#39ff5a" : "	#218aff"
-                }
-                borderRadius="6px"
-                padding="10px"
-                marginBottom="10px"
-                maxWidth="80%"
-                alignSelf={
-                  message.role === "assistant" ? "flex-start" : "flex-end"
-                }
-              >
-                <Text color="white">
-                  <strong>{message.role === "user" ? "You" : "Diego"}:</strong>{" "}
-                  {message.content}
-                </Text>
-              </Box>
+          <Box direction="vertical">
+            {chats?.map((chat) => (
+              <div onClick={() => setSelectedChat(chat)} key={chat.memberId}>
+                <Box
+                  key={chat.memberId}
+                  padding="10px"
+                  backgroundColor={selectedChat === chat ? "D80" : "D60"}
+                  margin="10px 0"
+                  borderRadius="8px"
+                  cursor="pointer"
+                  boxShadow="0 2px 4px rgba(0,0,0,0.1)"
+                  direction="vertical"
+                >
+                  <Text size="medium" weight="bold">
+                    {chat.memberName}
+                  </Text>
+                  <Text size="small" color="D40">
+                    {formatDate(chat.lastUpdated)}
+                  </Text>
+                </Box>
+              </div>
             ))}
           </Box>
-          <form onSubmit={handleSubmit}>
-            <Layout>
-              <Cell span={10}>
-                <FormField>
-                  <InputArea
-                    placeholder="Enter your message"
-                    value={userMessage}
-                    onChange={(e) => setUserMessage(e.target.value)}
-                    autoGrow
-                  />
-                </FormField>
-              </Cell>
-              <Cell span={2}>
-                <FormField>
-                  <Button
-                    type="submit"
-                    skin="standard"
-                    borderRadius="0 6px 6px 0"
-                  >
-                    Send
-                  </Button>
-                </FormField>
-              </Cell>
-            </Layout>
-          </form>
+        </Box>
+        <Divider direction="vertical" />
+        <Box direction="vertical" width="75%" padding="20px">
+          <Box
+            backgroundColor="D10"
+            overflow="auto"
+            direction="vertical"
+            gap={2}
+          >
+            {selectedChat ? (
+              <ChatView messages={selectedChat.messages} />
+            ) : (
+              <Text size="small" color="D40">
+                Select a chat to view messages
+              </Text>
+            )}
+          </Box>
+          <Box>{member && <DisplayMemberDetails member={member} />}</Box>{" "}
         </Box>
       </Box>
     </WixDesignSystemProvider>

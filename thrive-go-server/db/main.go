@@ -7,17 +7,21 @@ import (
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
+
+var COLLECTION_NAME = "thrive-chats"
 
 type Client struct {
 	*firestore.Client
 }
 
 type SavedChatRecord struct {
-	Messages   []chatgpt.Message
-	MemberId   string
-	MemberName string
+	Messages    []chatgpt.Message `json:"messages"`
+	MemberId    string            `json:"memberId"`
+	MemberName  string            `json:"memberName"`
+	LastUpdated string            `json:"lastUpdated"`
 }
 
 func NewClient(ctx context.Context, projectID string) (*Client, error) {
@@ -44,32 +48,60 @@ func (c *Client) CreateChat(ctx context.Context, messages []chatgpt.Message, wix
 		"memberName": wixUser.Profile.Nickname,
 		// Add any other fields you want to store in the document
 	}
-	_, _, err := c.Collection("thrive-chats").Add(ctx, chatDoc)
+	_, _, err := c.Collection(COLLECTION_NAME).Add(ctx, chatDoc)
 	return err
 }
 
 func (c *Client) UpdateChat(ctx context.Context, chatId string, savedChatRecord SavedChatRecord) error {
 	chatDoc := map[string]interface{}{
-		"messages":   savedChatRecord.Messages,
-		"memberId":   savedChatRecord.MemberId,
-		"memberName": savedChatRecord.MemberName,
+		"messages":    savedChatRecord.Messages,
+		"memberId":    savedChatRecord.MemberId,
+		"memberName":  savedChatRecord.MemberName,
+		"lastUpdated": savedChatRecord.LastUpdated,
 	}
-	_, err := c.Collection("thrive-chats").Doc(chatId).Set(ctx, chatDoc, firestore.MergeAll)
+	_, err := c.Collection(COLLECTION_NAME).Doc(chatId).Set(ctx, chatDoc, firestore.MergeAll)
 	return err
 }
 
 func (c *Client) GetChat(ctx context.Context, chatId string) (*[]chatgpt.Message, error) {
-	doc, err := c.Collection("thrive-chats").Doc(chatId).Get(ctx)
+	doc, err := c.Collection(COLLECTION_NAME).Doc(chatId).Get(ctx)
 	if err != nil {
 		println("Error getting chat document:", err)
 		return &[]chatgpt.Message{}, nil
 	}
 
-	var chat struct {
-		Messages []chatgpt.Message `firestore:"messages"`
-	}
+	var chat SavedChatRecord
 	if err := doc.DataTo(&chat); err != nil {
 		return nil, err
 	}
 	return &chat.Messages, nil
+}
+
+type ListChatsParams struct {
+	Limit  int
+	Offset int
+}
+
+func (c *Client) ListChats(ctx context.Context, params *ListChatsParams) *[]SavedChatRecord {
+	// Implement this method to list chats
+	snapshot := c.Collection(COLLECTION_NAME).Limit(params.Limit).Offset(params.Offset).OrderBy("lastUpdated", firestore.Desc).Documents(ctx)
+	var chats []SavedChatRecord
+
+	for {
+		doc, err := snapshot.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			println("Error getting chat document:", err)
+			return nil
+		}
+		var chat SavedChatRecord
+		if err := doc.DataTo(&chat); err != nil {
+			println("Error parsing chat document:", err)
+			return nil
+		}
+		chats = append(chats, chat)
+	}
+	return &chats
 }

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"thrive/server/admin"
 	"thrive/server/handlers"
 
 	"github.com/gin-gonic/gin"
@@ -10,7 +12,8 @@ import (
 
 func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// origin := c.Request.Header.Get("Origin")
+		origin := c.Request.Header.Get("Origin")
+		fmt.Println("origin", origin)
 		// if origin starts with os.Getenv("ALLOWED_ORIGIN"), set the header
 		// if origin != "" && strings.HasPrefix(origin, os.Getenv("ALLOWED_ORIGIN")) {
 		// 	c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
@@ -44,6 +47,8 @@ func main() {
 
 	r.POST("/chat", handlers.PostMessageHandler)
 	r.GET("/chat", handlers.GetChatHandler)
+
+	admin.RegisterAdminRoutes(r)
 
 	r.Run() // listen and serve on 0.0.0.0:8080
 }

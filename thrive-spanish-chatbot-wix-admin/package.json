@@ -4,8 +4,11 @@
   "private": true,
   "dependencies": {
     "@wix/app-market": "^1.0.34",
+    "@wix/contacts": "^1.0.27",
+    "@wix/crm": "^1.0.105",
     "@wix/dashboard-react": "^1.0.4",
     "@wix/design-system": "^1.0.0",
+    "@wix/members": "^1.0.86",
     "@wix/sdk-react": "^0.3.8",
     "@wix/wix-ui-icons-common": "^3.0.34"
   },

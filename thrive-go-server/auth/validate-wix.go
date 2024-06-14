@@ -87,7 +87,6 @@ func ValidateWixHeader() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		println("Validating Wix header")
 		instance := c.GetHeader("Authorization")
-		println("Instance: ", instance)
 		if instance == "" {
 			c.JSON(400, gin.H{"error": "No instance header"})
 			c.Abort()

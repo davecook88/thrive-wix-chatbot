@@ -10,9 +10,12 @@ import (
 	"thrive/server/chatgpt"
 	"thrive/server/db"
 	"thrive/server/wix"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+var MAX_USER_MESSAGES = 20
 
 func NewChatGPTRequest(messages *[]chatgpt.Message) *chatgpt.ChatGPTRequest {
 	toolsArray := []chatgpt.Tools{
@@ -70,6 +73,7 @@ func handleLevelEstimation(level string, wixContact *wix.Contact) {
 
 func handleToolCalls(toolCalls *[]chatgpt.ToolCall, wixMember *wix.WixMember) {
 	wixClient := wix.NewWixClient()
+	fmt.Println("got wix client")
 	contact, err := wixClient.GetContact(wixMember.ContactId)
 	if err != nil {
 		fmt.Println("failed to get contact", err)
@@ -108,12 +112,14 @@ func handleToolCalls(toolCalls *[]chatgpt.ToolCall, wixMember *wix.WixMember) {
 }
 
 func makeToolCall(client *chatgpt.ChatGPTClient, chatGPTRequest *chatgpt.ChatGPTRequest, wixMember *wix.WixMember) {
+	println("making tool call")
 	chatGPTResponse, err := client.MakeRequest(chatGPTRequest)
 	if err != nil {
 		return
 	}
 	choice := chatGPTResponse.Choices[0]
 	if choice.Message.ToolCalls != nil {
+		println("handling tool calls")
 		go handleToolCalls(&choice.Message.ToolCalls, wixMember)
 	}
 }
@@ -135,8 +141,18 @@ func CallChatGPT(c *gin.Context, messages *[]chatgpt.Message, wixMember *wix.Wix
 		}
 	}
 
+	// if user message count is greater than MAX_MESSAGE_COUNT
+	// return a standard message telling the user that they have reached the limit
+	if userMessageCount > MAX_USER_MESSAGES {
+		return &chatgpt.Message{
+			Role:    chatgpt.AssistantRole,
+			Content: "Your placement test is complete. One of our teachers will reach out shortly via email.",
+		}, nil
+	}
+
 	// make the tool call on every 3rd message
-	if userMessageCount > 3 && userMessageCount%3 == 0 {
+	println("userMessageCount", userMessageCount)
+	if userMessageCount == 1 || userMessageCount%3 == 0 {
 		go makeToolCall(client, newChatGPTRequest, wixMember)
 	}
 	// copy newChatGPTRequest
@@ -150,21 +166,17 @@ func CallChatGPT(c *gin.Context, messages *[]chatgpt.Message, wixMember *wix.Wix
 	}
 	choice := chatGPTResponse.Choices[0]
 
-	fmt.Println("returning message", choice)
-
 	return choice.Message.ToMessage(), nil
 
 }
 
 func PostMessageHandler(c *gin.Context) {
 	var request UserMessage
-	println("PostMessageHandler")
 	memberProfile := auth.ValidateWixUser(c)
 
 	if memberProfile == nil || memberProfile.ID == "" {
 		return
 	}
-	fmt.Println(memberProfile)
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -200,15 +212,14 @@ func PostMessageHandler(c *gin.Context) {
 	messages = append(messages, *chatGPTResponseMessage)
 
 	if err := dbClient.UpdateChat(c, memberProfile.ID, db.SavedChatRecord{
-		Messages:   messages,
-		MemberId:   memberProfile.ID,
-		MemberName: memberProfile.Profile.Nickname,
+		Messages:    messages,
+		MemberId:    memberProfile.ID,
+		MemberName:  memberProfile.Profile.Nickname,
+		LastUpdated: time.Now().Format(time.RFC3339),
 	}); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
-	println("PostMessageHandler finished")
 
 	c.JSON(200, messages)
 

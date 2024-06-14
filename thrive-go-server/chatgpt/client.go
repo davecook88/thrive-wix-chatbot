@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 )
@@ -30,9 +29,6 @@ func (c *ChatGPTClient) Do(req *http.Request) (*http.Response, error) {
 func (client *ChatGPTClient) MakeRequest(req *ChatGPTRequest) (*ChatGPTResponse, error) {
 	jsonData, err := json.Marshal(req)
 
-	// print the request JSON
-	fmt.Println(string(jsonData))
-
 	if err != nil {
 		return nil, errors.New("failed to marshal request")
 	}
@@ -55,16 +51,6 @@ func (client *ChatGPTClient) MakeRequest(req *ChatGPTRequest) (*ChatGPTResponse,
 
 	// Create a new reader with the response body
 	respBody := bytes.NewReader(body)
-
-	// Pretty-print the JSON response
-	var prettyJSON bytes.Buffer
-	err = json.Indent(&prettyJSON, body, "", "  ")
-	if err != nil {
-		return nil, errors.New("failed to pretty-print JSON")
-	}
-
-	// Print the pretty-printed JSON to the console
-	fmt.Println(prettyJSON.String())
 
 	// Create a new decoder with the response body reader
 	var chatGPTResponse ChatGPTResponse

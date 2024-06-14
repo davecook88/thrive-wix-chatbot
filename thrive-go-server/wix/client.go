@@ -3,9 +3,7 @@ package wix
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 )
@@ -58,6 +56,7 @@ func (c *WixClient) GetMember(memberId string) (*WixMember, error) {
 
 func (c *WixClient) GetContact(contactId string) (*Contact, error) {
 	url := "https://www.wixapis.com/contacts/v4/contacts/" + contactId
+	fmt.Println("url", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -67,28 +66,10 @@ func (c *WixClient) GetContact(contactId string) (*Contact, error) {
 		fmt.Println("failed to make request", err)
 		return nil, err
 	}
-	println("status", resp.Status)
 	defer resp.Body.Close()
 
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.New("failed to read response body")
-	}
-
-	// Create a new reader with the response body
-	respBody := bytes.NewReader(body)
-	fmt.Println("body", string(body))
-
-	// Pretty-print the JSON response
-	var prettyJSON bytes.Buffer
-	err = json.Indent(&prettyJSON, body, "", "  ")
-	if err != nil {
-		return nil, errors.New("failed to pretty-print JSON")
-	}
-
 	var contact GetContactAPIResponse
-	if err := json.NewDecoder(respBody).Decode(&contact); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&contact); err != nil {
 		return nil, err
 	}
 	return &contact.Contact, nil
@@ -127,7 +108,6 @@ func (c *WixClient) UpdateContact(contactId string, revision int, info ContactIn
 	if err := json.NewDecoder(req.Body).Decode(&contactResp); err != nil {
 		return nil, err
 	}
-	fmt.Println("contact", contactResp.Contact)
 	return &contactResp.Contact, nil
 
 }
