@@ -5,7 +5,7 @@ type ChatGPTRequest struct {
 	Messages   []Message `json:"messages" binding:"required,dive"`
 	Stream     bool      `json:"stream" binding:"default:false"`
 	Tools      []Tools   `json:"tools"`
-	ToolChoice string    `json:"tool_choice"`
+	ToolChoice *string   `json:"tool_choice"`
 }
 
 type Role string

@@ -2,8 +2,8 @@ package db
 
 import (
 	"context"
-	"thrive/server/auth"
 	"thrive/server/chatgpt"
+	"thrive/server/wix"
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
@@ -37,7 +37,7 @@ func NewClient(ctx context.Context, projectID string) (*Client, error) {
 
 }
 
-func (c *Client) CreateChat(ctx context.Context, messages []chatgpt.Message, wixUser auth.WixMember) error {
+func (c *Client) CreateChat(ctx context.Context, messages []chatgpt.Message, wixUser wix.WixMember) error {
 	chatDoc := map[string]interface{}{
 		"messages":   messages,
 		"memberId":   wixUser.ID,
