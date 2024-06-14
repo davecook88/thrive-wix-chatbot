@@ -68,7 +68,7 @@ class PlacementChatElement extends HTMLElement {
               margin-top: 20px;
           }
   
-          .input-area input {
+          .input-area textarea {
               flex: 1;
               padding: 12px;
               border: 1px solid #ccc;
