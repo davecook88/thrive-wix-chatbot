@@ -107,6 +107,7 @@ class PlacementChatElement extends HTMLElement {
         this.handleSendMessage();
       }
     });
+
     this.sendButton = this.shadowRoot.getElementById("sendButton");
 
     this.sendButton.addEventListener(
@@ -117,6 +118,15 @@ class PlacementChatElement extends HTMLElement {
     // Process any pending messages that were queued before the chatBox was available
     this.messages.forEach((message) => this.addMessageToChatBox(message));
     this.messages = [];
+    this.renderMessages();
+  }
+
+  hide() {
+    this.style.display = "none";
+  }
+
+  show() {
+    this.style.display = "block";
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -159,8 +169,21 @@ class PlacementChatElement extends HTMLElement {
   }
 
   renderMessages() {
+    console.log("Rendering messages", this?.messages);
+    if (!this.messages?.length) {
+      this.hide();
+      this.userMessage.disabled = true;
+      this.userMessage.placeholder = "Sign in to chat";
+      this.sendButton.disabled = true;
+      return;
+    } else {
+      this.show();
+      this.userMessage.disabled = false;
+      this.userMessage.placeholder = "Enter your message";
+      this.sendButton.disabled = false;
+    }
     this.chatBox.innerHTML = "";
-    this.messages.forEach((message) => {
+    this.messages?.forEach((message) => {
       const messageElement = document.createElement("div");
       messageElement.className = `${message.role} message`;
       messageElement.innerHTML = `
@@ -170,9 +193,13 @@ class PlacementChatElement extends HTMLElement {
           `;
       this.chatBox.appendChild(messageElement);
     });
+    // if last message is a user message, add a temporary assistant message
+    // with a loading indicator
+    if (this.messages[this.messages.length - 1].role === "user") {
+      this.addAssistantMessage("Thinking...");
+    }
     this.chatBox.scrollTop = this.chatBox.scrollHeight;
   }
 }
 
 customElements.define("placement-chat-element", PlacementChatElement);
-s;
