@@ -17,6 +17,7 @@ import { DisplayMemberDetails } from "../../components/member";
 export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
+  name?: string;
 }
 
 export interface SavedChatMessage {
@@ -123,7 +124,9 @@ function ChatApp() {
             gap={2}
           >
             {selectedChat ? (
-              <ChatView messages={selectedChat.messages} />
+              <ChatView
+                messages={selectedChat.messages?.filter((m) => !m.name)}
+              />
             ) : (
               <Text size="small" color="D40">
                 Select a chat to view messages
