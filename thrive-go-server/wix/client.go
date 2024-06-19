@@ -111,3 +111,26 @@ func (c *WixClient) UpdateContact(contactId string, revision int, info ContactIn
 	return &contactResp.Contact, nil
 
 }
+
+func (c *WixClient) QueryServices(request *QueryServicesRequest) (*[]Service, error) {
+	url := "https://www.wixapis.com/bookings/v2/services/query"
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var services QueryServicesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&services); err != nil {
+		return nil, err
+	}
+	return &services.Services, nil
+}

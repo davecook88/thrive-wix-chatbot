@@ -17,8 +17,10 @@ const (
 )
 
 type Message struct {
-	Role    Role   `json:"role" binding:"required,oneof=user assistant"`
-	Content string `json:"content" binding:"required"`
+	Role       Role    `json:"role" binding:"required,oneof=user assistant"`
+	Content    string  `json:"content" binding:"required"`
+	ToolCallId *string `json:"tool_call_id"`
+	Name       *string `json:"name"`
 }
 
 type ToolCallFunction struct {

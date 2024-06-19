@@ -168,6 +168,25 @@ class PlacementChatElement extends HTMLElement {
     this.renderMessages();
   }
 
+  /**
+   * Adds a message to the chat box.
+   * @param {string} messageStr - The message to add.
+   */
+  formatMessage(messageStr) {
+    content = content.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+    // Replace italic syntax with <em> tags
+    content = content.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+    // Replace links with <a> tags
+    content = content.replace(/\[(.*?)\]\((.*?)\)/g, "<a href='$2'>$1</a>");
+
+    // Replace newline characters with <br> tags
+    content = content.replace(/\n/g, "<br>");
+
+    return content;
+  }
+
   renderMessages() {
     console.log("Rendering messages", this?.messages);
     if (!this.messages?.length) {
@@ -189,7 +208,7 @@ class PlacementChatElement extends HTMLElement {
       messageElement.innerHTML = `
             <strong>${
               message.role === "user" ? "You" : "Diego"
-            }:</strong> ${message.content.replace(/\n/g, "<br>")}
+            }:</strong> ${this.formatMessage(message.content)}
           `;
       this.chatBox.appendChild(messageElement);
     });

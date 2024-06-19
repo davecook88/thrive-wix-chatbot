@@ -2,13 +2,13 @@ import { Permissions, webMethod } from "wix-web-module";
 import { currentMember } from "wix-members-backend";
 import { fetch } from "wix-fetch";
 
-const API_URL =
-  "https://9023-2806-2f0-63c0-9be8-f42f-125-e165-1343.ngrok-free.app";
+const API_URL = "https://thrive-chat-ba0bf.uc.r.appspot.com";
 
 /**
  * @typedef {Object} Message
  * @property {string} role - The role of the message sender. Can be either "user" or "assistant".
  * @property {string} content - The message content.
+ * @property {string} name - The name of the function called
  */
 
 /**
@@ -33,7 +33,7 @@ export const sendMessage = webMethod(
     const resJson = await res.json();
     if (res.ok) {
       if (Array.isArray(resJson)) {
-        return resJson;
+        return resJson.filter((message) => message.role !== "system");
       }
     } else {
       console.log("error", res.text());
@@ -59,7 +59,9 @@ export const getMessages = webMethod(Permissions.SiteMember, async () => {
   const resJson = await res.json();
   console.log(resJson);
   if (res.ok) {
-    return resJson;
+    return resJson.filter(
+      (message) => message.role !== "system" && !message.name
+    );
   } else {
     console.log("error", res.text());
     return [];
