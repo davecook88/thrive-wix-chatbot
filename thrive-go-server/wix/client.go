@@ -75,9 +75,14 @@ func (c *WixClient) GetContact(contactId string) (*Contact, error) {
 	return &contact.Contact, nil
 }
 
+type PatchInfoInfo struct {
+	ExtendedFields ExtendedFields `json:"extendedFields"`
+	LabelKeys      LabelKeys      `json:"labelKeys"`
+}
+
 type PatchInfo struct {
-	Revision int         `json:"revision"`
-	Info     ContactInfo `json:"info"`
+	Revision int           `json:"revision"`
+	Info     PatchInfoInfo `json:"info"`
 }
 
 func (c *WixClient) UpdateContact(contactId string, revision int, info ContactInfo) (*Contact, error) {
@@ -85,12 +90,13 @@ func (c *WixClient) UpdateContact(contactId string, revision int, info ContactIn
 	// turn info into json
 	putInfo := PatchInfo{
 		Revision: revision,
-		Info:     info,
+		Info:     PatchInfoInfo{ExtendedFields: info.ExtendedFields, LabelKeys: info.LabelKeys},
 	}
 	jsonInfo, err := json.Marshal(putInfo)
 	if err != nil {
 		fmt.Println("failed to marshal info", err)
 	}
+
 	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonInfo))
 	if err != nil {
 		fmt.Println("failed to create request", err)
@@ -106,6 +112,7 @@ func (c *WixClient) UpdateContact(contactId string, revision int, info ContactIn
 
 	var contactResp GetContactAPIResponse
 	if err := json.NewDecoder(req.Body).Decode(&contactResp); err != nil {
+		fmt.Println("failed to parse", err)
 		return nil, err
 	}
 	return &contactResp.Contact, nil

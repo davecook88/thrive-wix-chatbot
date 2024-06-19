@@ -95,6 +95,7 @@ func handleToolCalls(toolCalls *[]chatgpt.ToolCall, wixMember *wix.WixMember) {
 			continue
 		}
 	}
+	fmt.Println("updating contact")
 	wixClient.UpdateContact(contact.ID, contact.Revision, contact.Info)
 
 }
