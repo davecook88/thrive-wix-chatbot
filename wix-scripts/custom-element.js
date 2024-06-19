@@ -116,7 +116,7 @@ class PlacementChatElement extends HTMLElement {
     );
 
     // Process any pending messages that were queued before the chatBox was available
-    this.messages.forEach((message) => this.addMessageToChatBox(message));
+    this.messages.forEach((message) => this?.addMessageToChatBox(message));
     this.messages = [];
     this.renderMessages();
   }
@@ -170,16 +170,19 @@ class PlacementChatElement extends HTMLElement {
 
   /**
    * Adds a message to the chat box.
-   * @param {string} messageStr - The message to add.
+   * @param {string} content - The message to add.
    */
-  formatMessage(messageStr) {
+  formatMessage(content) {
     content = content.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 
     // Replace italic syntax with <em> tags
     content = content.replace(/\*(.*?)\*/g, "<em>$1</em>");
 
     // Replace links with <a> tags
-    content = content.replace(/\[(.*?)\]\((.*?)\)/g, "<a href='$2'>$1</a>");
+    content = content.replace(
+      /\[(.*?)\]\((.*?)\)/g,
+      `<a href='$2' target="_blank">$1</a>`
+    );
 
     // Replace newline characters with <br> tags
     content = content.replace(/\n/g, "<br>");
@@ -203,6 +206,8 @@ class PlacementChatElement extends HTMLElement {
     }
     this.chatBox.innerHTML = "";
     this.messages?.forEach((message) => {
+      if (!message?.content?.trim()) return;
+      console.log("Rendering message", message);
       const messageElement = document.createElement("div");
       messageElement.className = `${message.role} message`;
       messageElement.innerHTML = `
