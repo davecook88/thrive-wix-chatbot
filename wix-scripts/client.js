@@ -20,17 +20,27 @@ $w.onReady(function () {
 
   const chatElement = $w("#customElement1");
 
-  getMessages().then((messages) => {
-    chatElement.setAttribute("data-messages", JSON.stringify(messages));
-  });
+  chatElement.on("loginRequested", onLoginButtonClick)
+
+
   chatElement.on("messageSent", async (e) => {
     const messages = await sendMessage(e.detail.content);
 
     chatElement.setAttribute("data-messages", JSON.stringify(messages));
   });
 
-  authentication.onLogin(hideElements);
+  authentication.onLogin(() => {
+    hideElements();
+    getMessages().then((messages) => {
+      hideElements()
+      chatElement.setAttribute("data-messages", JSON.stringify(messages));
+    }).catch(()=> {
+      hideElements();
+      chatElement.setAttribute("data-messages", JSON.stringify([]));
+    })
+  });
   authentication.onLogout(hideElements);
+  hideElements()
 });
 
 /**
@@ -43,14 +53,25 @@ export function onLoginButtonClick(event) {
 }
 
 export async function hideElements() {
+  console.log("hide elements")
   const chatbox = $w("#customElement1");
   const loginButton = $w("#login-button");
+  const loginPrompt = $w("#login-prompt")
   const currentMember = await members.getCurrentMember();
   if (!currentMember) {
-    chatbox.hide();
+    console.log("current member not found")
     loginButton.show();
+    loginPrompt.show()
+
   } else {
-    chatbox.show();
+    console.log("current member found")
     loginButton.hide();
+    loginPrompt.hide()
+
+    getMessages().then((messages) => {
+      chatbox.setAttribute("data-messages", JSON.stringify(messages));
+    }).catch(()=> {
+      chatbox.setAttribute("data-messages", JSON.stringify([]));
+    })
   }
 }

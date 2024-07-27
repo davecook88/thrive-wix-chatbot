@@ -39,7 +39,7 @@ func handleGetServices() *string {
 	// print the json of the services
 	responseStr := ""
 	for _, service := range *services {
-		responseStr += service.ToString() + "\n"
+		responseStr += service.ToString() + "\n ##SERVICE_SEPARATOR \n"
 	}
 
 	return &responseStr

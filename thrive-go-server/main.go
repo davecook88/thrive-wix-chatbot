@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"thrive/server/admin"
+	chromeext "thrive/server/chrome-ext"
 	"thrive/server/handlers"
 
 	"github.com/gin-gonic/gin"
@@ -49,6 +50,7 @@ func main() {
 	r.GET("/chat", handlers.GetChatHandler)
 
 	admin.RegisterAdminRoutes(r)
+	chromeext.RegisterChromeExtRoutes(r)
 
 	r.Run() // listen and serve on 0.0.0.0:8080
 }
