@@ -34,7 +34,7 @@ func NewChatGPTRequestCheckLevel(messages *[]chatgpt.Message) *chatgpt.ChatGPTRe
 	}
 	toolChoice := "required"
 	return &chatgpt.ChatGPTRequest{
-		Model:      "gpt-4o",
+		Model:      "gpt-5-nano",
 		Messages:   *messages,
 		Stream:     false,
 		Tools:      toolsArray,
@@ -50,7 +50,7 @@ func NewChatGPTRequestConversation(messages *[]chatgpt.Message) *chatgpt.ChatGPT
 			map[string]interface{}{}),
 	}
 	return &chatgpt.ChatGPTRequest{
-		Model:    "gpt-4o",
+		Model:    "gpt-5-nano",
 		Messages: *messages,
 		Stream:   false,
 		Tools:    toolsArray,
