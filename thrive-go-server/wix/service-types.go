@@ -145,7 +145,7 @@ type SEOData struct {
 	} `json:"tags"`
 	Settings struct {
 		PreventAutoRedirect bool     `json:"preventAutoRedirect"`
-		Keywords            []string `json:"keywords"`
+		Keywords            []any `json:"keywords"`
 	} `json:"settings"`
 }
 
