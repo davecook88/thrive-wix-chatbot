@@ -43,12 +43,13 @@ func NewChatGPTRequestCheckLevel(messages *[]chatgpt.Message) *chatgpt.ChatGPTRe
 }
 
 func NewChatGPTRequestConversation(messages *[]chatgpt.Message) *chatgpt.ChatGPTRequest {
-	toolsArray := []chatgpt.Tools{
-		*chatgpt.NewToolFunction(
-			"getServices",
-			`Get all available services to suggest the best option to the user.`,
-			map[string]interface{}{}),
-	}
+	// toolsArray := []chatgpt.Tools{
+	// 	*chatgpt.NewToolFunction(
+	// 		"getServices",
+	// 		`Get all available services to suggest the best option to the user.`,
+	// 		map[string]interface{}{}),
+	// }
+	toolsArray := []chatgpt.Tools{}
 	return &chatgpt.ChatGPTRequest{
 		Model:    "gpt-5-nano",
 		Messages: *messages,

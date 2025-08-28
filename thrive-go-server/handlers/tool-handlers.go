@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"thrive/server/chatgpt"
+	"thrive/server/db"
 	"thrive/server/wix"
 )
 
@@ -22,16 +24,8 @@ func handleLevelEstimation(level string, wixContact *wix.Contact) {
 	wixContact.Info.LabelKeys.Items = filteredLabels
 }
 
-func handleGetServices() *string {
-	wixClient := wix.NewWixClient()
-	fmt.Println("got wix client in get services")
-	filter := map[string]interface{}{
-		"hidden": false,
-	}
-
-	// Create a new QueryServicesRequest instance
-	request := wix.NewQueryServicesRequest(filter)
-	services, err := wixClient.QueryServices(request)
+func handleGetServices(ctx context.Context, dbClient *db.Client) *string {
+	services, err := dbClient.GetWixServices(ctx)
 	if err != nil {
 		fmt.Println("failed to get services", err)
 		return new(string)
@@ -46,17 +40,17 @@ func handleGetServices() *string {
 
 }
 
-func handleToolCallsWithResponse(toolCalls *[]chatgpt.ToolCall) *string {
+func handleToolCallsWithResponse(ctx context.Context, toolCalls *[]chatgpt.ToolCall, dbClient *db.Client) *string {
 	for _, toolCall := range *toolCalls {
 		switch toolCall.Function.Name {
 		case "getServices":
-			return handleGetServices()
+			return handleGetServices(ctx, dbClient)
 		}
 	}
 	return new(string)
 }
 
-func handleToolCalls(toolCalls *[]chatgpt.ToolCall, wixMember *wix.WixMember) {
+func handleToolCalls(toolCalls *[]chatgpt.ToolCall, wixMember *wix.WixMember, dbClient *db.Client) {
 	wixClient := wix.NewWixClient()
 	fmt.Println("got wix client")
 	contact, err := wixClient.GetContact(wixMember.ContactId)
@@ -67,7 +61,7 @@ func handleToolCalls(toolCalls *[]chatgpt.ToolCall, wixMember *wix.WixMember) {
 	for _, toolCall := range *toolCalls {
 		switch toolCall.Function.Name {
 		case "estimateUserLevel":
-			// Arguments should be a JSON string like this {\"estimatedLevel\":\"C1\"}
+			// Arguments should be a JSON string like this {"estimatedLevel":"C1"}
 			arguments := map[string]string{}
 			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &arguments); err != nil {
 				fmt.Println("failed to unmarshal arguments", err)
@@ -76,7 +70,7 @@ func handleToolCalls(toolCalls *[]chatgpt.ToolCall, wixMember *wix.WixMember) {
 			handleLevelEstimation(arguments["estimatedLevel"], contact)
 
 		case "addNotes":
-			// Arguments should be a JSON string like this {\"notes\":\"This user is interested in learning Spanish for travel.\"}
+			// Arguments should be a JSON string like this {"notes":"This user is interested in learning Spanish for travel."}
 			arguments := map[string]string{}
 			fmt.Println("addNotes", toolCall.Function.Arguments)
 			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &arguments); err != nil {
@@ -89,7 +83,7 @@ func handleToolCalls(toolCalls *[]chatgpt.ToolCall, wixMember *wix.WixMember) {
 			contact.Info.ExtendedFields.Items["custom.notes"] = newNotes
 
 		case "getServices":
-			handleGetServices()
+			handleGetServices(context.Background(), dbClient)
 
 		default:
 			continue

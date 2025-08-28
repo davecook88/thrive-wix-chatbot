@@ -11,7 +11,9 @@ import (
 	"google.golang.org/api/option"
 )
 
-var COLLECTION_NAME = "thrive-chats"
+
+var CHAT_COLLECTION = "thrive-chats"
+var WIX_SERVICES_COLLECTION = "wix-services"
 
 type Client struct {
 	*firestore.Client
@@ -24,7 +26,12 @@ type SavedChatRecord struct {
 	LastUpdated string            `json:"lastUpdated"`
 }
 
-func NewClient(ctx context.Context, projectID string) (*Client, error) {
+type CachedWixServices struct {
+	Services    []wix.Service `json:"services"`
+	LastUpdated string        `json:"lastUpdated"`
+}
+
+func NewClient(ctx context.Context) (*Client, error) {
 	opt := option.WithCredentialsFile("creds.json")
 
 	app, err := firebase.NewApp(ctx, nil, opt)
@@ -48,7 +55,7 @@ func (c *Client) CreateChat(ctx context.Context, messages []chatgpt.Message, wix
 		"memberName": wixUser.Profile.Nickname,
 		// Add any other fields you want to store in the document
 	}
-	_, _, err := c.Collection(COLLECTION_NAME).Add(ctx, chatDoc)
+	_, _, err := c.Collection(CHAT_COLLECTION).Add(ctx, chatDoc)
 	return err
 }
 
@@ -59,12 +66,12 @@ func (c *Client) UpdateChat(ctx context.Context, chatId string, savedChatRecord 
 		"memberName":  savedChatRecord.MemberName,
 		"lastUpdated": savedChatRecord.LastUpdated,
 	}
-	_, err := c.Collection(COLLECTION_NAME).Doc(chatId).Set(ctx, chatDoc, firestore.MergeAll)
+	_, err := c.Collection(CHAT_COLLECTION).Doc(chatId).Set(ctx, chatDoc, firestore.MergeAll)
 	return err
 }
 
 func (c *Client) GetChat(ctx context.Context, chatId string) (*[]chatgpt.Message, error) {
-	doc, err := c.Collection(COLLECTION_NAME).Doc(chatId).Get(ctx)
+	doc, err := c.Collection(CHAT_COLLECTION).Doc(chatId).Get(ctx)
 	if err != nil {
 		println("Error getting chat document:", err)
 		return &[]chatgpt.Message{}, nil
@@ -84,7 +91,7 @@ type ListChatsParams struct {
 
 func (c *Client) ListChats(ctx context.Context, params *ListChatsParams) *[]SavedChatRecord {
 	// Implement this method to list chats
-	snapshot := c.Collection(COLLECTION_NAME).Limit(params.Limit).Offset(params.Offset).OrderBy("lastUpdated", firestore.Desc).Documents(ctx)
+	snapshot := c.Collection(CHAT_COLLECTION).Limit(params.Limit).Offset(params.Offset).OrderBy("lastUpdated", firestore.Desc).Documents(ctx)
 	var chats []SavedChatRecord
 
 	for {

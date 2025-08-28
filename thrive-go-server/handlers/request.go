@@ -15,7 +15,7 @@ import (
 
 var MAX_USER_MESSAGES = 20
 
-func makeToolCall(client *chatgpt.ChatGPTClient, chatGPTRequest *chatgpt.ChatGPTRequest, wixMember *wix.WixMember) {
+func makeToolCall(client *chatgpt.ChatGPTClient, chatGPTRequest *chatgpt.ChatGPTRequest, wixMember *wix.WixMember, dbClient *db.Client) {
 	println("making tool call")
 	chatGPTResponse, err := client.MakeRequest(chatGPTRequest)
 	if err != nil {
@@ -24,18 +24,20 @@ func makeToolCall(client *chatgpt.ChatGPTClient, chatGPTRequest *chatgpt.ChatGPT
 	choice := chatGPTResponse.Choices[0]
 	if choice.Message.ToolCalls != nil {
 		println("handling tool calls")
-		go handleToolCalls(&choice.Message.ToolCalls, wixMember)
+		go handleToolCalls(&choice.Message.ToolCalls, wixMember, dbClient)
 	}
 }
 
-func CallChatGPT(c *gin.Context, messages *[]chatgpt.Message, wixMember *wix.WixMember) (*[]chatgpt.Message, error) {
+func CallChatGPT(c *gin.Context, messages *[]chatgpt.Message, wixMember *wix.WixMember, dbClient *db.Client) (*[]chatgpt.Message, error) {
 
 	client := chatgpt.NewChatGPTClient(os.Getenv("OPENAI_API_KEY"))
 	_messages := *messages
+	// Generate the system context
+	systemContext := GenerateSystemContext(dbClient, c)
 
 	// if the first message is not the system message, add a system message
 	if len(_messages) == 0 || _messages[0].Role != chatgpt.SystemRole {
-		_messages = append(chatgpt.InitialMessages, _messages...)
+		_messages = append(chatgpt.GetInitialMessages(systemContext), _messages...)
 	}
 	newChatGPTRequest := NewChatGPTRequestConversation(&_messages)
 	userMessageCount := 0
@@ -57,7 +59,7 @@ func CallChatGPT(c *gin.Context, messages *[]chatgpt.Message, wixMember *wix.Wix
 	// make the tool call on every 3rd message
 	println("userMessageCount", userMessageCount)
 	if userMessageCount == 1 || userMessageCount%3 == 0 {
-		go makeToolCall(client, NewChatGPTRequestCheckLevel(messages), wixMember)
+		go makeToolCall(client, NewChatGPTRequestCheckLevel(messages), wixMember, dbClient)
 	}
 	// copy newChatGPTRequest
 	responseMessages := []chatgpt.Message{}
@@ -71,7 +73,7 @@ func CallChatGPT(c *gin.Context, messages *[]chatgpt.Message, wixMember *wix.Wix
 	choice := chatGPTResponse.Choices[0]
 	if choice.Message.ToolCalls != nil {
 		fmt.Println("handling tool calls", choice.Message.ToolCalls)
-		funcResponseStr := handleToolCallsWithResponse(&choice.Message.ToolCalls)
+		funcResponseStr := handleToolCallsWithResponse(c, &choice.Message.ToolCalls, dbClient)
 		responseMsg := chatgpt.Message{
 			Role:       chatgpt.AssistantRole,
 			Content:    *funcResponseStr,
@@ -92,84 +94,79 @@ func CallChatGPT(c *gin.Context, messages *[]chatgpt.Message, wixMember *wix.Wix
 	return &responseMessages, nil
 }
 
-func PostMessageHandler(c *gin.Context) {
-	var request UserMessage
-	memberProfile := auth.ValidateWixUser(c)
+func PostMessageHandler(dbClient *db.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		go dbClient.GetWixServices(c)
+		var request UserMessage
+		memberProfile := auth.ValidateWixUser(c)
 
-	if memberProfile == nil || memberProfile.ID == "" {
-		return
+		if memberProfile == nil || memberProfile.ID == "" {
+			return
+		}
+
+		if err := c.ShouldBindJSON(&request); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+
+		var existingMessages *[]chatgpt.Message
+
+		existingMessages, err := dbClient.GetChat(c, memberProfile.ID)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		if len(*existingMessages) == 0 {
+			additionalSystemPrompt := GenerateSystemContext(dbClient, c)
+			tmp := chatgpt.GetInitialMessages(additionalSystemPrompt)
+			existingMessages = &tmp
+		}
+
+		messages := append(*existingMessages, chatgpt.Message{Role: chatgpt.UserRole, Content: request.Message})
+
+		chatGPTResponseMessage, err := CallChatGPT(c, &messages, memberProfile, dbClient)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		messages = append(messages, *chatGPTResponseMessage...)
+
+		if err := dbClient.UpdateChat(c, memberProfile.ID, db.SavedChatRecord{
+			Messages:    messages,
+			MemberId:    memberProfile.ID,
+			MemberName:  memberProfile.Profile.Nickname,
+			LastUpdated: time.Now().Format(time.RFC3339),
+		}); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(200, messages)
 	}
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	dbClient, err := db.NewClient(c, "thrive-chat")
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
-
-	var existingMessages *[]chatgpt.Message
-
-	existingMessages, err = dbClient.GetChat(c, memberProfile.ID)
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
-
-	if len(*existingMessages) == 0 {
-		existingMessages = &chatgpt.InitialMessages
-	}
-
-	messages := append(*existingMessages, chatgpt.Message{Role: chatgpt.UserRole, Content: request.Message})
-
-	chatGPTResponseMessage, err := CallChatGPT(c, &messages, memberProfile)
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
-
-	messages = append(messages, *chatGPTResponseMessage...)
-
-	if err := dbClient.UpdateChat(c, memberProfile.ID, db.SavedChatRecord{
-		Messages:    messages,
-		MemberId:    memberProfile.ID,
-		MemberName:  memberProfile.Profile.Nickname,
-		LastUpdated: time.Now().Format(time.RFC3339),
-	}); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(200, messages)
-
 }
 
-func GetChatHandler(c *gin.Context) {
-	memberProfile := auth.ValidateWixUser(c)
-	if memberProfile == nil || memberProfile.ID == "" {
-		c.JSON(400, gin.H{"error": "No user instance"})
-		return
-	}
+func GetChatHandler(dbClient *db.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		memberProfile := auth.ValidateWixUser(c)
+		if memberProfile == nil || memberProfile.ID == "" {
+			c.JSON(400, gin.H{"error": "No user instance"})
+			return
+		}
 
-	dbClient, err := db.NewClient(c, "thrive-chat")
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
+		messages, err := dbClient.GetChat(c, memberProfile.ID)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
 
-	messages, err := dbClient.GetChat(c, memberProfile.ID)
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
+		if len(*messages) == 0 {
+			additionalSystemPrompt := GenerateSystemContext(dbClient, c)
+			newMessages := chatgpt.GetInitialMessages(additionalSystemPrompt)[1:]
+			messages = &newMessages
+		}
 
-	if len(*messages) == 0 {
-		newMessages := chatgpt.InitialMessages[1:]
-		messages = &newMessages
+		c.JSON(200, messages)
 	}
-
-	c.JSON(200, messages)
 }

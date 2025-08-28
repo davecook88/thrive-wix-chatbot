@@ -51,7 +51,10 @@ var SystemMessage = `You are an AI assistant named Profesor Diego who will be ad
     
 `
 
-var InitialMessages = []Message{{Role: SystemRole, Content: SystemMessage}, {
-	Role:    AssistantRole,
-	Content: InitialDiegoMessage,
-}}
+
+
+func GetInitialMessages(additionalSystemPrompt string) []Message {
+	return []Message{
+        {Role: SystemRole, Content: additionalSystemPrompt + "\n" + InitialDiegoMessage},
+	}
+}
