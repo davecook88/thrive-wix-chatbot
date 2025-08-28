@@ -49,6 +49,12 @@ var SystemMessage = `You are an AI assistant named Profesor Diego who will be ad
 
     When you have assessed the student's level, ask if they are interested in group or private classes and ask about what days and times they are available. Provide information on how to sign up for classes and thank them for participating in the assessment.
     
+    <WIX_SERVICE_INFORMATION>
+    WIX services come in different types - these meet different student needs:
+    CLASS - Group class that can be booked on an ad-hoc basis or as part of a package. These tend to be conversational classes which are independent.
+    COURSE - Group classes that follow a specific course. Students might book an 8 session course on Wednesday at 8pm. The idea is that the group is static and all students attend all sessions.
+    APPOINTMENT - Ad-hoc classes that can be reserved one-on-one with a teacher. If a teacher is available, any student can book a session with them. These can be paid for individually or a package can be bought to get a discount.
+    </WIX_SERVICE_INFORMATION>
 `
 
 
