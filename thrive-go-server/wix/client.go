@@ -141,3 +141,38 @@ func (c *WixClient) QueryServices(request *QueryServicesRequest) (*[]Service, er
 	}
 	return &services.Services, nil
 }
+
+func (c *WixClient) QueryPricingPlans() (*[]PricingPlan, error) {
+	url := "https://www.wixapis.com/pricing-plans/v3/plans/query"
+	jsonData := []byte(`{
+		"query": {
+			"filter": {
+				"visibility": "PUBLIC"
+			},
+			"sort": [
+				{
+					"fieldName": "name",
+					"order": "ASC"
+				}
+			],
+			"cursorPaging": {
+				"limit": 100
+			}
+		}
+	}`)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var pricingPlans PricingPlanQueryResponse
+	if err := json.NewDecoder(resp.Body).Decode(&pricingPlans); err != nil {
+		return nil, err
+	}
+	return &pricingPlans.Plans, nil
+}

@@ -206,9 +206,9 @@ func (s *Service) ToString() string {
 		Name: %s
 		Description: %s
 		DefaultCapacity: %d
-		ServicePage: %s
-		BookingPage: %s`,
-		s.ID, s.Type, s.Name, s.Description, s.DefaultCapacity, s.URLs.ServicePage.URL, s.URLs.BookingPage.URL)
+		BookingPage: %s
+		FixedPrice: %s %s`,
+		s.ID, s.Type, s.Name, s.Description, s.DefaultCapacity,  s.URLs.BookingPage.URL, s.Payment.Fixed.Value, s.Payment.Fixed.Currency)
 }
 
 type QueryServicesResponse struct {

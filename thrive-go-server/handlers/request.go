@@ -97,6 +97,7 @@ func CallChatGPT(c *gin.Context, messages *[]chatgpt.Message, wixMember *wix.Wix
 func PostMessageHandler(dbClient *db.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		go dbClient.GetWixServices(c)
+		go dbClient.GetWixPricingPlans(c)
 		var request UserMessage
 		memberProfile := auth.ValidateWixUser(c)
 

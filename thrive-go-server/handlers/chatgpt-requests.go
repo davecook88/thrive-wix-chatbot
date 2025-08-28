@@ -3,6 +3,19 @@ package handlers
 import "thrive/server/chatgpt"
 
 func NewChatGPTRequestCheckLevel(messages *[]chatgpt.Message) *chatgpt.ChatGPTRequest {
+	// replace system message with something more specific
+	newMessages := []chatgpt.Message{
+		{
+			Role:   "system",
+			Content: `You make notes in the CRM about conversations that users have with the chatbot. You work for Thrive in Spanish an online Spanish school.
+			Your job is to summarize user interactions and provide insights on their learning progress.`,
+		},
+	}
+	for idx, msg := range *messages {
+		if idx > 0 {
+			newMessages = append(newMessages, msg)
+		}
+	}
 	toolsArray := []chatgpt.Tools{
 		*chatgpt.NewToolFunction(
 			"estimateUserLevel",
@@ -35,7 +48,7 @@ func NewChatGPTRequestCheckLevel(messages *[]chatgpt.Message) *chatgpt.ChatGPTRe
 	toolChoice := "required"
 	return &chatgpt.ChatGPTRequest{
 		Model:      "gpt-5-nano",
-		Messages:   *messages,
+		Messages:   newMessages,
 		Stream:     false,
 		Tools:      toolsArray,
 		ToolChoice: &toolChoice,
