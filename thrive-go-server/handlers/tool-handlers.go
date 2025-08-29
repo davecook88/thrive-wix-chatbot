@@ -8,6 +8,7 @@ import (
 	"thrive/server/chatgpt"
 	"thrive/server/db"
 	"thrive/server/wix"
+	"time"
 )
 
 func handleLevelEstimation(level string, wixContact *wix.Contact) {
@@ -40,11 +41,57 @@ func handleGetServices(ctx context.Context, dbClient *db.Client) *string {
 
 }
 
+func handleGetAvailability(ctx context.Context, dbClient *db.Client, serviceIDs []string) *string {
+	wixClient := wix.NewWixClient()
+
+	if serviceIDs == nil || len(serviceIDs) == 0 {
+		services, err := dbClient.GetWixServices(ctx)
+		if err != nil {
+			fmt.Println("failed to get services", err)
+			return new(string)
+		}
+		for _, service := range *services {
+			serviceIDs = append(serviceIDs, service.ID)
+		}
+	}
+
+	request := &wix.AvailabilityQueryRequest{
+		Query: wix.AvailabilityQuery{
+			Filter: wix.AvailabilityFilter{
+				ServiceIDs: serviceIDs,
+				Bookable:   "true",
+				StartDate:  time.Now().Format(time.RFC3339),
+				EndDate:    time.Now().AddDate(0, 0, 7).Format(time.RFC3339),
+			},
+		},
+	}
+
+	availability, err := wixClient.QueryAvailability(request)
+	if err != nil {
+		fmt.Println("failed to get availability", err)
+		return new(string)
+	}
+
+	responseStr := ""
+	for _, entry := range availability.AvailabilityEntries {
+		responseStr += entry.Slot.ToString() + "\n"
+	}
+
+	return &responseStr
+}
+
 func handleToolCallsWithResponse(ctx context.Context, toolCalls *[]chatgpt.ToolCall, dbClient *db.Client) *string {
 	for _, toolCall := range *toolCalls {
 		switch toolCall.Function.Name {
 		case "getServices":
 			return handleGetServices(ctx, dbClient)
+		case "getAvailability":
+			arguments := make(map[string][]string)
+			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &arguments); err != nil {
+				fmt.Println("failed to unmarshal arguments", err)
+				return new(string)
+			}
+			return handleGetAvailability(ctx, dbClient, arguments["serviceIds"])
 		}
 	}
 	return new(string)

@@ -119,8 +119,14 @@ func PostMessageHandler(dbClient *db.Client) gin.HandlerFunc {
 		}
 
 		if len(*existingMessages) == 0 {
+			timezoneMessage := `<TIME_MESSAGE>The current time is ` + time.Now().Format(time.RFC3339) + `UTC.
+			Current Date: ` + time.Now().Format("2006-01-02") + `
+			The user's current time is ` + request.UserTime + `.
+			Remember that all service and slot times are in UTC. You are responsible for converting all times accordingly.
+			</TIME_MESSAGE>
+			`
 			additionalSystemPrompt := GenerateSystemContext(dbClient, c)
-			tmp := chatgpt.GetInitialMessages(additionalSystemPrompt)
+			tmp := chatgpt.GetInitialMessages(timezoneMessage+additionalSystemPrompt)
 			existingMessages = &tmp
 		}
 

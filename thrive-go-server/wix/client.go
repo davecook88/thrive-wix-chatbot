@@ -176,3 +176,26 @@ func (c *WixClient) QueryPricingPlans() (*[]PricingPlan, error) {
 	}
 	return &pricingPlans.Plans, nil
 }
+
+func (c *WixClient) QueryAvailability(request *AvailabilityQueryRequest) (*AvailabilityQueryResponse, error) {
+	url := "https://www.wixapis.com/availability-calendar/v1/availability/query"
+	jsonData, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var availability AvailabilityQueryResponse
+	if err := json.NewDecoder(resp.Body).Decode(&availability); err != nil {
+		return nil, err
+	}
+	return &availability, nil
+}
