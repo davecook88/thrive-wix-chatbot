@@ -199,9 +199,11 @@ class PlacementChatElement extends HTMLElement {
     this.userMessage = this.shadowRoot.getElementById("userMessage");
     this.sendButton = this.shadowRoot.getElementById("sendButton");
     this.chatContainer = this.shadowRoot.getElementById("chat-container");
-    
-    this.loginPreview.addEventListener("click", this.handleLoginClick.bind(this));
 
+    this.loginPreview.addEventListener(
+      "click",
+      this.handleLoginClick.bind(this)
+    );
 
     this.userMessage.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -210,16 +212,24 @@ class PlacementChatElement extends HTMLElement {
       }
     });
 
-    this.sendButton.addEventListener("click", this.handleSendMessage.bind(this));
+    this.sendButton.addEventListener(
+      "click",
+      this.handleSendMessage.bind(this)
+    );
 
     this.messages.forEach((message) => this.addMessageToChatBox(message));
     this.messages = [];
     this.renderMessages();
   }
 
-
   hide() {
-    if (!this.chatBox|| !this.userMessage || !this.sendButton || !this.loginPreview) return;
+    if (
+      !this.chatBox ||
+      !this.userMessage ||
+      !this.sendButton ||
+      !this.loginPreview
+    )
+      return;
     this.chatBox.style.display = "none";
     this.userMessage.style.display = "none";
     this.sendButton.style.display = "none";
@@ -228,7 +238,13 @@ class PlacementChatElement extends HTMLElement {
   }
 
   show() {
-    if (!this.chatBox|| !this.userMessage || !this.sendButton || !this.loginPreview) return;
+    if (
+      !this.chatBox ||
+      !this.userMessage ||
+      !this.sendButton ||
+      !this.loginPreview
+    )
+      return;
 
     this.chatBox.style.display = "block";
     this.userMessage.style.display = "block";
@@ -241,7 +257,7 @@ class PlacementChatElement extends HTMLElement {
     // Dispatch a custom event that the parent application can listen for
     const event = new CustomEvent("loginRequested", {
       bubbles: true,
-      composed: true
+      composed: true,
     });
     this.dispatchEvent(event);
   }
@@ -299,6 +315,12 @@ class PlacementChatElement extends HTMLElement {
     content = content.replace(
       /\[(.*?)\]\((.*?)\)/g,
       `<a href='$2' target="_blank">$1</a>`
+    );
+
+    // Replace plain URLs with <a> tags
+    content = content.replace(
+      /(https?:\/\/[^\s]+)/g,
+      `<a href="$1" target="_blank">$1</a>`
     );
 
     // Replace newline characters with <br> tags
