@@ -44,7 +44,7 @@ func handleGetServices(ctx context.Context, dbClient *db.Client) *string {
 func handleGetAvailability(ctx context.Context, dbClient *db.Client, serviceIDs []string) *string {
 	wixClient := wix.NewWixClient()
 
-	if serviceIDs == nil || len(serviceIDs) == 0 {
+	if serviceIDs == nil {
 		services, err := dbClient.GetWixServices(ctx)
 		if err != nil {
 			fmt.Println("failed to get services", err)
